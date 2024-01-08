@@ -1,4 +1,4 @@
-# Selenium-Printer
+# Selenium-Printers
 This Python script automates the process of gathering printer counters from various sources (web interfaces, observium), storing them in a MySQL database, and then exporting the data to an Excel file while also sending it as an email attachment.  
 # How to Use: 
 1. Make sure you have the required Python libraries installed (selenium, pandas, openpyxl, mysql-connector-python, time, os, shutil, csv).
