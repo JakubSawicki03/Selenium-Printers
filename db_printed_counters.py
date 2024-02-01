@@ -107,14 +107,16 @@ def isConnection():         # check printer's availability
             combined_df.to_excel(writer, sheet_name=f'{printer_ip[7:21]}', index=False)     # write excel file from dataFrame (each printer has separated xlsx file)
 
 def whichMenu():            # check which menu has the appropriate printer
-    if printer_ip[-3:] == "xml":
-        newMenu()
-    elif printer_ip[-3:] == "tml":
-        oldMenu()
+    if printer_ip[-15:] == '101/wcd/top.xml':
+        c3351Menu()
     elif printer_ip[-9:] == 'observium':
-        observiumPrinter()
+        observiumMenu()
+    elif printer_ip[-3:] == "tml":
+        htmlMenu()
+    elif printer_ip[-3:] == "xml":
+        xmlMenu()
 
-def oldMenu():              # get counter from the old printer's menu
+def htmlMenu():             # get counter from the old printer's menu
     with pd.ExcelWriter(f'{path}\\counters_excel\\{printer_ip[7:21]}.xlsx') as writer:
         driver.get(f"{printer_ip}")
 
@@ -161,14 +163,13 @@ def oldMenu():              # get counter from the old printer's menu
 
         combined_df.to_excel(writer, sheet_name=f'{printer_ip[7:21]}', index=False)     # write excel file from dataFrame (each printer has separated xlsx file)
 
-def newMenu():              # get counter from the new printer's menu
+def xmlMenu():              # get counter from the new printer's menu
     with pd.ExcelWriter(f'{path}\\counters_excel\\{printer_ip[7:21]}.xlsx') as writer:
         driver.get(f'{printer_ip}')
 
         printerIpTable.append(printer_ip[7:21]); time.sleep(1)               # append ip_address to the list
 
-        driver.find_element(By.XPATH, '//input[@value="Html"]').click()         # view mode (flash)
-        driver.find_element(By.XPATH, '//input[@value="Login"]').click(); time.sleep(2)      # log in  
+        driver.find_element(By.XPATH, '//input[@value="Login"][@type="submit"]').click(); time.sleep(2)      # log in  
         driver.find_element(By.XPATH, '//*[contains(text(),"Network Setting Information")]').click(); time.sleep(2)      # go to printer information (for IP address)
         
         ip_div = driver.find_element(By.ID, value='S_NET').get_attribute('outerHTML')        # scrap div that contains ip_address
@@ -183,7 +184,7 @@ def newMenu():              # get counter from the new printer's menu
 
         data_table = driver.find_element(By.ID, value='S_COU')      # scrap table from printer website
         data_table_html = data_table.get_attribute('outerHTML')     # convert element into raw string
-        df_table1 = pd.read_html(data_table_html)[1]                # dataFrame - 2nd tabbe
+        df_table1 = pd.read_html(data_table_html)[1]                # dataFrame - 2nd table
         df_table2 = pd.read_html(data_table_html)[3]                # dataFrame - 4th table
         df_table3 = pd.read_html(data_table_html)[-1]               # dataFrame - the last one table
 
@@ -196,7 +197,7 @@ def newMenu():              # get counter from the new printer's menu
         combined_df = pd.concat([df_printer_number, df_ip, df_black_counter, df_color_counter, df_scan_counter], ignore_index=False, axis=1)   # concatenate dataFrames into one
         combined_df.to_excel(writer, sheet_name=f'{printer_ip[7:21]}', index=False)        # write excel file from dataFrame (each printer has separated sheet)
 
-def observiumPrinter():     # get counter from the observium website
+def observiumMenu():        # get counter from the observium website
     with pd.ExcelWriter(f'{path}\\counters_excel\\{printer_ip[7:21]}.xlsx') as writer:
         username = cred.usr_obs
         password = cred.pass_obs
@@ -218,6 +219,38 @@ def observiumPrinter():     # get counter from the observium website
         black_counter = driver.find_element(By.XPATH, '//*[@id="main_container"]/div[1]/div[2]/div[6]/div/table/tbody/tr[1]/td[8]/strong/a').text   # get black counter from observium
         df_black_counter = pd.DataFrame(data={'Czarny':[black_counter]})        # dataFrame - black counter
         df_color_counter = pd.DataFrame(data={'Kolor':[int(0)]})                # dataFrame - color counter
+        df_scan_counter = pd.DataFrame(data={'Skany':[int(0)]})                 # final scan counter dataFrame
+
+        combined_df = pd.concat([df_printer_number, df_ip, df_black_counter, df_color_counter, df_scan_counter], ignore_index=False, axis=1)   # concatenate dataFrames into one
+        combined_df.to_excel(writer, sheet_name=f'{printer_ip[7:21]}', index=False)        # write excel file from dataFrame (each printer has separated sheet)
+
+def c3351Menu():            # get counter from the c3351 menu
+    with pd.ExcelWriter(f'{path}\\counters_excel\\{printer_ip[7:21]}.xlsx') as writer:
+        driver.get(f'{printer_ip}')
+
+        printerIpTable.append(printer_ip[7:21]); time.sleep(1)               # append ip_address to the list
+
+        driver.find_element(By.XPATH, '//input[@value="Login"][@type="submit"]').click(); time.sleep(2)      # log in  
+        driver.find_element(By.XPATH, '//*[contains(text(),"Network Setting Information")]').click(); time.sleep(2)      # go to printer information (for IP address)
+        
+        ip_div = driver.find_element(By.ID, value='MC_NetworkInfo').get_attribute('outerHTML')        # scrap div that contains ip_address
+        ip_table = pd.read_html(ip_div)[0]                     # dataFrame - DIV that contains ip adress
+        ip_address = ip_table.iloc[2, 1]                    # select the second row (index 2) and the first column (index 1)
+        df_ip = pd.DataFrame(data={'Ip_drukarki':[ip_address]})      # dataFrame - IP ADDRESS 
+        printer_number = (printer_ip[7:21])[-2:]            # get printer number
+        df_printer_number = pd.DataFrame(data={'Nr_drukarki':[printer_number]})              # dataFrame - PRINTER NUMBER
+
+        driver.find_element(By.XPATH, '//*[contains(text(),"Device Information")]').click(); time.sleep(2)     #  click the counters menu
+        driver.find_element(By.XPATH, '//*[contains(text(),"Meter Count")]').click()         #  go to the counters page
+
+        data_table = driver.find_element(By.ID, value='MC_AllTotalCounter')      # scrap table from printer website
+        data_table_html = data_table.get_attribute('outerHTML')         # convert element into raw string
+        df_table = pd.read_html(data_table_html)[-1]                    # dataFrame (the last table)
+
+        black_counter = int(df_table.iloc[1, 1])   # sum of black counters
+        color_counter = int(df_table.iloc[2, 1])   # sum of color counters
+        df_black_counter = pd.DataFrame(data={'Czarny':[black_counter]})        # dataFrame - black counter
+        df_color_counter = pd.DataFrame(data={'Kolor':[color_counter]})         # dataFrame - color counter
         df_scan_counter = pd.DataFrame(data={'Skany':[int(0)]})                 # final scan counter dataFrame
 
         combined_df = pd.concat([df_printer_number, df_ip, df_black_counter, df_color_counter, df_scan_counter], ignore_index=False, axis=1)   # concatenate dataFrames into one
